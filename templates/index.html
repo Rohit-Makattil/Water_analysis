@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HydroSafe // Water Quality Diagnostics</title>
+    <!-- Google Fonts: Inter and JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- External stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+
+    <!-- Left Ingestion Controller Sidebar -->
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-logo">
+                <i data-lucide="droplet" size="18"></i>
+            </div>
+            <span class="brand-name">HydroSafe Labs</span>
+        </div>
+        
+        <div>
+            <div class="sidebar-panel-title">
+                <i data-lucide="sliders" size="14"></i>
+                <span>Parameters Form</span>
+            </div>
+            
+            <form id="ingestionForm" class="sliders-container">
+                <!-- pH Level -->
+                <div class="slider-group">
+                    <div class="slider-label-row">
+                        <span class="slider-title">
+                            pH Level
+                            <span class="tooltip-container">
+                                <i data-lucide="help-circle" size="13" class="slider-tooltip"></i>
+                                <span class="tooltip-text">Measure of water acidity or alkalinity. Safe range is between 6.5 and 8.5.</span>
+                            </span>
+                        </span>
+                        <span class="slider-value-badge" id="ph-badge">7.0</span>
+                    </div>
+                    <input type="range" class="custom-slider" id="ph" name="ph" min="0" max="14" step="0.1" value="7.0">
+                    <div class="slider-scale">
+                        <span>0.0 (Acidic)</span>
+                        <span>7.0 (Neutral)</span>
+                        <span>14.0 (Alkaline)</span>
+                    </div>
+                </div>
+
+                <!-- Total Dissolved Solids -->
+                <div class="slider-group">
+                    <div class="slider-label-row">
+                        <span class="slider-title">
+                            Dissolved Solids (TDS)
+                            <span class="tooltip-container">
+                                <i data-lucide="help-circle" size="13" class="slider-tooltip"></i>
+                                <span class="tooltip-text">Concentration of inorganic and organic dissolved substances. Safe limit is below 1,000 ppm.</span>
+                            </span>
+                        </span>
+                        <span class="slider-value-badge" id="solids-badge">500 ppm</span>
+                    </div>
+                    <input type="range" class="custom-slider" id="solids" name="solids" min="0" max="2000" step="10" value="500">
+                    <div class="slider-scale">
+                        <span>0 ppm</span>
+                        <span>1,000 ppm (Limit)</span>
+                        <span>2,000 ppm</span>
+                    </div>
+                </div>
+
+                <!-- Chloramines -->
+                <div class="slider-group">
+                    <div class="slider-label-row">
+                        <span class="slider-title">
+                            Chloramines
+                            <span class="tooltip-container">
+                                <i data-lucide="help-circle" size="13" class="slider-tooltip"></i>
+                                <span class="tooltip-text">Chemical disinfectants. Safe limit is below 4.0 ppm to avoid eye/skin irritation.</span>
+                            </span>
+                        </span>
+                        <span class="slider-value-badge" id="chloramines-badge">2.0 ppm</span>
+                    </div>
+                    <input type="range" class="custom-slider" id="chloramines" name="chloramines" min="0" max="8" step="0.1" value="2.0">
+                    <div class="slider-scale">
+                        <span>0.0 ppm</span>
+                        <span>4.0 ppm (Limit)</span>
+                        <span>8.0 ppm</span>
+                    </div>
+                </div>
+
+                <!-- Sulfate -->
+                <div class="slider-group">
+                    <div class="slider-label-row">
+                        <span class="slider-title">
+                            Sulfate
+                            <span class="tooltip-container">
+                                <i data-lucide="help-circle" size="13" class="slider-tooltip"></i>
+                                <span class="tooltip-text">Dissolved mineral salts. Safe limit is below 250 mg/L to avoid laxative effects.</span>
+                            </span>
+                        </span>
+                        <span class="slider-value-badge" id="sulfate-badge">150 mg/L</span>
+                    </div>
+                    <input type="range" class="custom-slider" id="sulfate" name="sulfate" min="0" max="500" step="5" value="150">
+                    <div class="slider-scale">
+                        <span>0 mg/L</span>
+                        <span>250 mg/L (Limit)</span>
+                        <span>500 mg/L</span>
+                    </div>
+                </div>
+
+                <!-- Turbidity -->
+                <div class="slider-group">
+                    <div class="slider-label-row">
+                        <span class="slider-title">
+                            Turbidity
+                            <span class="tooltip-container">
+                                <i data-lucide="help-circle" size="13" class="slider-tooltip"></i>
+                                <span class="tooltip-text">Clarity level of water. Suspended particles should keep turbidity below 5.0 NTU.</span>
+                            </span>
+                        </span>
+                        <span class="slider-value-badge" id="turbidity-badge">2.5 NTU</span>
+                    </div>
+                    <input type="range" class="custom-slider" id="turbidity" name="turbidity" min="0" max="10" step="0.1" value="2.5">
+                    <div class="slider-scale">
+                        <span>0.0 NTU</span>
+                        <span>5.0 NTU (Limit)</span>
+                        <span>10.0 NTU</span>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-compute" id="btn-compute">
+                    <i data-lucide="activity" size="16"></i>
+                    Run Safety Analysis
+                </button>
+            </form>
+        </div>
+
+        <div class="engine-status-card">
+            <div class="engine-status-header">
+                <span class="status-pulse"></span>
+                <span>Engine Active</span>
+            </div>
+            <div class="engine-status-text">
+                XGBoost Predictive Classifier loaded. System ready for analysis.
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Viewport Area -->
+    <main class="main-viewport">
+        <!-- Top Bar Header -->
+        <header class="top-bar">
+            <div class="top-bar-title">
+                <h1>Water Safety Diagnostics</h1>
+                <p>Machine learning predictive analysis based on physical-chemical metrics.</p>
+            </div>
+            <div class="time-badge">
+                <i data-lucide="clock" size="13"></i>
+                <span id="live-time">MAY 31, 2026 // 00:00</span>
+            </div>
+        </header>
+
+        <!-- Metrics Overview Grid -->
+        <section class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-title">Safety Score Index</span>
+                    <i data-lucide="shield" size="15" class="metric-icon"></i>
+                </div>
+                <div class="metric-value" id="card-wq-score">--</div>
+                <div class="metric-footer">
+                    <span>Client-side heuristics</span>
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-title">Model Classification</span>
+                    <i data-lucide="cpu" size="15" class="metric-icon"></i>
+                </div>
+                <div class="metric-value" id="card-ml-status">Standby</div>
+                <div class="metric-footer">
+                    <span>XGBoost Decision Boundary</span>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-title">Detected Issues</span>
+                    <i data-lucide="alert-circle" size="15" class="metric-icon"></i>
+                </div>
+                <div class="metric-value" id="card-issues-count">0</div>
+                <div class="metric-footer">
+                    <span>Active parameter bounds</span>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-title">Total Ingestions</span>
+                    <i data-lucide="database" size="15" class="metric-icon"></i>
+                </div>
+                <div class="metric-value" id="card-total-runs">0</div>
+                <div class="metric-footer">
+                    <span>Active session logs</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dashboard Diagnostic Workspace Grid -->
+        <section class="dashboard-grid">
+            
+            <!-- Quality Assessment Panel (Left) -->
+            <article class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <i data-lucide="clipboard-check" size="16"></i>
+                        <span>Diagnostic Safety Analysis</span>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <!-- Idle State -->
+                    <div class="assessment-idle" id="assessment-idle">
+                        <i data-lucide="droplet" size="40"></i>
+                        <p>Adjust parameters on the left and run analysis to generate diagnostic reports.</p>
+                    </div>
+
+                    <!-- Loader State -->
+                    <div class="assessment-loading" id="assessment-loading">
+                        <div class="professional-spinner"></div>
+                        <div>
+                            <h4>Analyzing Ingestion Data</h4>
+                            <p style="margin-top: 0.25rem;">Processing parameter values through classification engines...</p>
+                        </div>
+                    </div>
+
+                    <!-- Results State -->
+                    <div class="assessment-results" id="assessment-results">
+                        <!-- Score Gauge -->
+                        <div class="gauge-container">
+                            <svg class="gauge-svg" width="160" height="160" viewBox="0 0 160 160">
+                                <circle class="gauge-track" cx="80" cy="80" r="70"></circle>
+                                <circle class="gauge-fill" id="gauge-fill-circle" cx="80" cy="80" r="70"></circle>
+                            </svg>
+                            <div class="gauge-info">
+                                <span class="gauge-score" id="result-score">--</span>
+                                <span class="gauge-label">Quality Score</span>
+                            </div>
+                        </div>
+
+                        <!-- Safety Badge -->
+                        <div class="badge-container">
+                            <div class="safety-badge" id="safety-badge">
+                                <span id="safety-icon-placeholder"><i data-lucide="shield-check" size="14"></i></span>
+                                <span id="safety-badge-text">STANDARD SAFE</span>
+                            </div>
+                        </div>
+
+                        <!-- Detected Issues -->
+                        <div class="diagnostic-section" id="issues-container" style="display: none;">
+                            <div class="diagnostic-section-title anomalies">
+                                <i data-lucide="alert-triangle" size="14"></i>
+                                <span>Detected Anomalies</span>
+                            </div>
+                            <ul class="diagnostic-list anomalies-list" id="issues-list"></ul>
+                        </div>
+
+                        <!-- Recommendations -->
+                        <div class="diagnostic-section">
+                            <div class="diagnostic-section-title recommendations">
+                                <i data-lucide="info" size="14"></i>
+                                <span>Treatment Guidelines</span>
+                            </div>
+                            <ul class="diagnostic-list recommendations-list" id="recs-list"></ul>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+            <!-- Right Workspace Column (Treatment Planner and History Table) -->
+            <div style="display: flex; flex-direction: column; gap: 2rem;">
+                
+                <!-- Dynamic Mitigation & Treatment Planner Panel -->
+                <article class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i data-lucide="wrench" size="16"></i>
+                            <span>Dynamic Treatment & Mitigation Planner</span>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <!-- Idle Mitigation State -->
+                        <div class="assessment-idle" id="mitigation-idle" style="min-height: 180px; padding: 1.5rem;">
+                            <i data-lucide="check-circle" size="32" style="color: var(--emerald);"></i>
+                            <p style="font-size: 0.85rem; max-width: 300px;">No chemical anomalies detected. All parameters are within clean guidelines.</p>
+                        </div>
+
+                        <!-- Active Mitigation Planner Content -->
+                        <div id="mitigation-active" style="display: none; flex-direction: column; gap: 1.25rem;">
+                            <div id="mitigation-list" style="display: flex; flex-direction: column; gap: 1rem;">
+                                <!-- Filled dynamically via JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Historical Ingestion Logs Panel -->
+                <article class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i data-lucide="history" size="16"></i>
+                            <span>Historical Ingestion Table</span>
+                        </div>
+                        <span class="slider-value-badge" id="history-badge">0 Ingests</span>
+                    </div>
+                    <div class="history-table-container">
+                        <table class="history-table" id="history-table">
+                            <thead>
+                                <tr>
+                                    <th>pH</th>
+                                    <th>TDS</th>
+                                    <th>Chlor.</th>
+                                    <th>Sulfate</th>
+                                    <th>Turb.</th>
+                                    <th>Index</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-tbody">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; color: var(--text-dim); padding: 2rem;">No parameters ingested in this session.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Interactive script controller -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
