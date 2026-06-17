@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HydroSafe // Water Quality Intelligence Platform</title>
+    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- External stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script>
+        // Set the active tab passed from backend routes
+        const INITIAL_TAB = "{{ active_tab or 'home' }}";
+    </script>
+    <style>
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 0.35rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .nav-tab {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            text-decoration: none;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        .nav-tab:hover {
+            color: var(--text-bright);
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .nav-tab.active {
+            color: var(--text-bright);
+            background: var(--primary);
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
+        }
+        .who-status-pass {
+            color: var(--emerald);
+            font-weight: 700;
+        }
+        .who-status-fail {
+            color: var(--rose);
+            font-weight: 700;
+        }
+        .spin-animation {
+            animation: spin 0.8s linear infinite;
+        }
+        
+        /* Smart City Custom Elements */
+        .heatmap-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.75rem;
+            max-width: 320px;
+            margin: 0 auto;
+        }
+        .heatmap-node {
+            aspect-ratio: 1;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-muted);
+            transition: all var(--transition-normal);
+            cursor: pointer;
+        }
+        .heatmap-node.safe {
+            background: rgba(16, 185, 129, 0.12);
+            border-color: var(--emerald);
+            color: var(--emerald);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.08);
+        }
+        .heatmap-node.unsafe {
+            background: rgba(244, 63, 94, 0.12);
+            border-color: var(--rose);
+            color: var(--rose);
+            box-shadow: 0 0 10px rgba(244, 63, 94, 0.08);
+        }
+        .heatmap-node.warning {
+            background: rgba(245, 158, 11, 0.12);
+            border-color: var(--amber);
+            color: var(--amber);
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.08);
+        }
+        
+        .sectors-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.25rem;
+        }
+        .sector-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            backdrop-filter: var(--glass-blur);
+            border-radius: 12px;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            transition: all var(--transition-fast);
+            box-shadow: var(--card-shadow);
+        }
+        .sector-card:hover {
+            border-color: var(--border-hover);
+            transform: translateY(-1px);
+        }
+        .sector-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 700;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .sector-status {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .sector-val {
+            font-size: 1.5rem;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+        }
+        .sector-footer {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Left sidebar navigation -->
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-logo">
+                <i data-lucide="droplet" size="16"></i>
+            </div>
+            <span class="brand-name">HydroSafe</span>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a class="sidebar-link active" data-tab="home">
+                <i data-lucide="home" size="15"></i>
+                <span>Home</span>
+            </a>
+            <a class="sidebar-link" data-tab="dashboard">
+                <i data-lucide="layout-dashboard" size="15"></i>
+                <span>Dashboard</span>
+            </a>
+            <a class="sidebar-link" data-tab="analyze">
+                <i data-lucide="droplet" size="15"></i>
+                <span>Analyze Water</span>
+            </a>
+            <a class="sidebar-link" data-tab="smartcity">
+                <i data-lucide="building" size="15"></i>
+                <span>Smart City</span>
+            </a>
+            <a class="sidebar-link" data-tab="analytics">
+                <i data-lucide="line-chart" size="15"></i>
+                <span>Analytics</span>
+            </a>
+            <a class="sidebar-link" data-tab="performance">
+                <i data-lucide="cpu" size="15"></i>
+                <span>Performance</span>
+            </a>
+            <a class="sidebar-link" data-tab="history">
+                <i data-lucide="history" size="15"></i>
+                <span>History</span>
+            </a>
+            <a class="sidebar-link" data-tab="about">
+                <i data-lucide="info" size="15"></i>
+                <span>About</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <!-- IoT simulator control -->
+            <div class="sidebar-panel-title" style="margin-bottom: 0.5rem; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
+                IoT Sensor Simulator
+            </div>
+            <div class="engine-status-card" style="background: rgba(14, 165, 233, 0.03); border-color: rgba(14, 165, 233, 0.15); margin-top: 0; margin-bottom: 0.5rem; padding: 0.75rem;">
+                <div class="engine-status-header" style="color: var(--primary); justify-content: space-between; display: flex; align-items: center;">
+                    <span style="display:flex; align-items:center; gap:0.4rem; font-size: 0.72rem;">
+                        <span class="status-pulse" id="iot-pulse" style="background-color: var(--text-muted); box-shadow: none; width: 6px; height: 6px;"></span>
+                        <span id="iot-status-lbl" style="color: var(--text-muted);">Offline</span>
+                    </span>
+                    <button type="button" id="btn-toggle-iot" style="background: var(--primary); border:none; border-radius:4px; color:#fff; font-size:0.65rem; font-weight:700; padding:0.15rem 0.45rem; cursor:pointer; transition: background-color var(--transition-fast);">Enable</button>
+                </div>
+            </div>
+
+            <button class="theme-toggle-btn" id="theme-toggle">
+                <span>Theme Switcher</span>
+                <i data-lucide="sun" size="14" id="theme-icon"></i>
+            </button>
+            <div class="system-status">
+                <span class="status-dot"></span>
+                <span>System Active</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Viewport Area -->
+    <main class="main-viewport">
+        <!-- Top bar header -->
+        <header class="top-bar">
+            <div class="top-bar-title">
+                <h1 id="page-title">Home</h1>
+                <p id="page-description">Predictive water chemical diagnostics dashboard.</p>
+            </div>
+            <div class="status-indicators">
+                <div class="status-tag">
+                    <i data-lucide="database" size="13" style="color:var(--primary)"></i>
+                    <span>SQLite Connected</span>
+                </div>
+                <div class="status-tag">
+                    <i data-lucide="cpu" size="13" style="color:var(--emerald)"></i>
+                    <span>XGBoost Active</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dynamic Content Tabs -->
+
+        <!-- 1. Home Tab Content -->
+        <section class="tab-content active" id="tab-home">
+            <div class="welcome-banner">
+                <div class="welcome-text">
+                    <h2>Water Quality Intelligence</h2>
+                    <p>Welcome to HydroSafe. This SaaS platform utilizes gradient-boosted decision boundary engines (XGBoost) combined with Shapley explanations to classify chemical potability and detail mitigation guidelines.</p>
+                </div>
+                <div class="welcome-graphic" style="opacity:0.8;">
+                    <i data-lucide="shield-check" size="48" style="color:var(--primary);"></i>
+                </div>
+            </div>
+
+            <div class="quick-action-cards">
+                <div class="action-card" data-action="go-analyze">
+                    <div class="action-card-icon">
+                        <i data-lucide="activity" size="20"></i>
+                    </div>
+                    <div class="action-card-info">
+                        <h3>Run Water Ingestion Diagnostic</h3>
+                        <p>Adjust chemical sliders (pH, TDS, Chloramines, Sulfate, Turbidity) to generate local safety classifications, WHO reports, and treatment guidelines.</p>
+                    </div>
+                </div>
+                <div class="action-card" data-action="go-performance">
+                    <div class="action-card-icon">
+                        <i data-lucide="bar-chart-3" size="20"></i>
+                    </div>
+                    <div class="action-card-info">
+                        <h3>Classifier Performance</h3>
+                        <p>Analyze receiver operating characteristic (ROC) curves, feature importances, and confusion matrices across 5 distinct trained models.</p>
+                    </div>
+                </div>
+            </div>
+
+            <article class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <i data-lucide="book-open" size="15"></i>
+                        <span>WHO Guideline Standards Thresholds</span>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <div style="font-size:0.88rem; color:var(--text-secondary); line-height:1.6; display:flex; flex-direction:column; gap:1rem;">
+                        <p>Under WHO and EPA secondary drinking water regulations, the chemical parameters are subject to the following standard bounds:</p>
+                        <ul style="padding-left:1.5rem; display:flex; flex-direction:column; gap:0.5rem;">
+                            <li><strong>pH Level (6.5 – 8.5):</strong> Dictates corrosion or scaling behavior. Acidic water dissolves pipe metals; alkaline water forms scale deposits.</li>
+                            <li><strong>Dissolved Solids (0 – 1000 ppm):</strong> Total dissolved minerals. Values above 1000 ppm indicate excessive scaling, mineral taste, and potential laxative effects.</li>
+                            <li><strong>Chloramines (0.0 – 4.0 ppm):</strong> Disinfectant levels. Exceeding 4.0 ppm can lead to aesthetic changes, skin irritation, and toxic by-products.</li>
+                            <li><strong>Sulfate (0 – 250 mg/L):</strong> Naturally occurring salts. Concentrations above 250 mg/L cause laxative effects and mineral tastes.</li>
+                            <li><strong>Turbidity (0.0 – 5.0 NTU):</strong> Clarity measure. Readings above 5.0 NTU shelter pathogens and disrupt disinfection.</li>
+                        </ul>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <!-- 2. Dashboard Tab Content -->
+        <section class="tab-content" id="tab-dashboard">
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-title">Total Assessed Samples</span>
+                        <i data-lucide="clipboard" size="14" class="metric-icon"></i>
+                    </div>
+                    <div class="metric-value" id="dash-total-runs">0</div>
+                    <div class="metric-footer">All database assessment records</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-title">Average Quality Score</span>
+                        <i data-lucide="shield" size="14" class="metric-icon"></i>
+                    </div>
+                    <div class="metric-value" id="dash-avg-score">--</div>
+                    <div class="metric-footer">Mean calculated safety index</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-title">Critical Risks Flagged</span>
+                        <i data-lucide="alert-triangle" size="14" class="metric-icon"></i>
+                    </div>
+                    <div class="metric-value" id="dash-critical-count">0</div>
+                    <div class="metric-footer">Assessments scoring &le; 40%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-title">Active Database Status</span>
+                        <i data-lucide="activity" size="14" class="metric-icon"></i>
+                    </div>
+                    <div class="metric-value" style="color:var(--emerald)">HEALTHY</div>
+                    <div class="metric-footer">SQLite connection open</div>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <!-- Recent Stream Panel -->
+                <article class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i data-lucide="list" size="15"></i>
+                            <span>Recent Diagnostic Submissions</span>
+                        </div>
+                    </div>
+                    <div class="panel-body" style="padding:0;">
+                        <div class="history-table-container">
+                            <table class="history-table">
+                                <thead>
+                                    <tr>
+                                        <th>pH</th>
+                                        <th>TDS</th>
+                                        <th>Sulfate</th>
+                                        <th>Score</th>
+                                        <th>Prediction</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dash-recent-tbody">
+                                    <tr>
+                                        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">No recent assessments.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Pie Chart Summary Panel -->
+                <article class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i data-lucide="pie-chart" size="15"></i>
+                            <span>Water Safety Distribution (Ratio)</span>
+                        </div>
+                    </div>
+                    <div class="panel-body" style="display:flex; justify-content:center; align-items:center; min-height:220px; position:relative;">
+                        <div style="width:180px; height:180px;">
+                            <canvas id="dashRatioChart"></canvas>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- 3. Analyze Water Tab Content -->
+        <section class="tab-content" id="tab-analyze">
+            <div class="analyze-grid">
+                <!-- Parameter Sliders Card -->
+                <article class="panel sliders-card">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i data-lucide="sliders" size="15"></i>
+                            <span>Diagnostics Ingestion Form</span>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <form id="ingestionForm" class="sliders-container">
+                            <!-- pH Level -->
+                            <div class="slider-group">
+                                <div class="slider-label-row">
+                                    <span class="slider-title">
+                                        pH Level
+                                        <span class="tooltip-container">
+                                            <i data-lucide="help-circle" size="13" class="slider-tooltip"></i>
+                                            <span class="tooltip-text">Water acidity or alkalinity. WHO standard range is 6.5–8.5.</span>
+                                        </span>
+                                    </span>
+                                    <span class="slider-value-badge" id="ph-badge">7.0</span>
+                                </div>
+                                <input type="range" class="custom-slider" id="ph" name="ph" min="0" max="14" step="0.1" value="7.0">
+                                <div class="slider-scale">
+                                    <span>0.0</span>
+                                    <span>7.0</span>
+                                    <span>14.0</span>
+                                </div>
+                            </div>
+
+                            <!-- Total Dissolved Solids -->
+                            <div class="slider-group">
+                                <div class="slider-label-row">
+                                    <span class="slider-title">
+                                        Dissolved Solids (TDS)
+                                        <span class="tooltip-container">
+                                            <i data-lucide="help-circle" size="13" class="slider-tooltip"></i>
+                                            <span class="tooltip-text">Total dissolved organic/inorganic minerals. Safe limit is below 1,000 ppm.</span>
+                                        </span>
+                                    </span>
+                                    <span class="slider-value-badge" id="solids-badge">500 ppm</span>
+                                </div>
+                                <input type="range" class="custom-slider" id="solids" name="solids" min="0" max="2000" step="10" value="500">
+                                <div class="slider-scale">
+                                    <span>0 ppm</span>
+                                    <span>1000 ppm</span>
+                                    <span>2000 ppm</span>
+                                </div>
+                            </div>
+
+                            <!-- Chloramines -->
+                            <div class="slider-group">
+                                <div class="slider-label-row">
+                                    <span class="slider-title">
+                                        Chloramines
+                                        <span class="tooltip-container">
+                                            <i data-lucide="help-circle" size="13" class="slider-tooltip"></i>
+                                            <span class="tooltip-text">Disinfectant content. Safe limit is strictly below 4.0 ppm.</span>
+                                        </span>
+                                    </span>
+                                    <span class="slider-value-badge" id="chloramines-badge">2.0 ppm</span>
+                                </div>
+                                <input type="range" class="custom-slider" id="chloramines" name="chloramines" min="0" max="8" step="0.1" value="2.0">
+                                <div class="slider-scale">
+                                    <span>0.0 ppm</span>
+                                    <span>4.0 ppm</span>
+                                    <span>8.0 ppm</span>
+                                </div>
+                            </div>
+
+                            <!-- Sulfate -->
+                            <div class="slider-group">
+                                <div class="slider-label-row">
+                                    <span class="slider-title">
+                                        Sulfate
+                                        <span class="tooltip-container">
+                                            <i data-lucide="help-circle" size="13" class="slider-tooltip"></i>
+                                            <span class="tooltip-text">Naturally dissolved sulfate salts. Safe limit is below 250 mg/L.</span>
+                                        </span>
+                                    </span>
+                                    <span class="slider-value-badge" id="sulfate-badge">150 mg/L</span>
+                                </div>
+                                <input type="range" class="custom-slider" id="sulfate" name="sulfate" min="0" max="500" step="5" value="150">
+                                <div class="slider-scale">
+                                    <span>0 mg/L</span>
+                                    <span>250 mg/L</span>
+                                    <span>500 mg/L</span>
+                                </div>
+                            </div>
+
+                            <!-- Turbidity -->
+                            <div class="slider-group">
+                                <div class="slider-label-row">
+                                    <span class="slider-title">
+                                        Turbidity
+                                        <span class="tooltip-container">
+                                            <i data-lucide="help-circle" size="13" class="slider-tooltip"></i>
+                                            <span class="tooltip-text">Suspended particles clarity measure. Keep below 5.0 NTU.</span>
+                                        </span>
+                                    </span>
+                                    <span class="slider-value-badge" id="turbidity-badge">2.5 NTU</span>
+                                </div>
+                                <input type="range" class="custom-slider" id="turbidity" name="turbidity" min="0" max="10" step="0.1" value="2.5">
+                                <div class="slider-scale">
+                                    <span>0.0 NTU</span>
+                                    <span>5.0 NTU</span>
+                                    <span>10.0 NTU</span>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn-compute">
+                                <i data-lucide="activity" size="15"></i>
+                                Run Ingestion Diagnostics
+                            </button>
+                        </form>
+                    </div>
+                </article>
+
+                <!-- Analysis Diagnostic Results panel -->
+                <article class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i data-lucide="clipboard-check" size="15"></i>
+                            <span>Diagnostic Reports</span>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <!-- Idle State -->
+                        <div class="assessment-idle" id="assessment-idle">
+                            <i data-lucide="droplet" size="36"></i>
+                            <p>Configure parameters on the left and run analysis to populate details.</p>
+                        </div>
+
+                        <!-- Loading State -->
+                        <div class="assessment-loading" id="assessment-loading">
+                            <div class="professional-spinner"></div>
+                            <div>
+                                <h4>Analyzing Water Chemistry</h4>
+                                <p style="margin-top:0.25rem;">Performing XGBoost classification and calculating SHAP values...</p>
+                            </div>
+                        </div>
+
+                        <!-- Results Content -->
+                        <div class="assessment-results" id="assessment-results">
+                            
+                            <!-- SVG Gauge & Safety Badge & PDF Link -->
+                            <div style="display:flex; justify-content:space-around; align-items:center; flex-wrap:wrap; gap:1.5rem;">
+                                <div class="gauge-container">
+                                    <svg class="gauge-svg" width="140" height="140" viewBox="0 0 160 160">
+                                        <circle class="gauge-track" cx="80" cy="80" r="70"></circle>
+                                        <circle class="gauge-fill" id="gauge-fill-circle" cx="80" cy="80" r="70"></circle>
+                                    </svg>
+                                    <div class="gauge-info">
+                                        <span class="gauge-score" id="result-score">--</span>
+                                        <span class="gauge-label" id="result-category">Quality Index</span>
+                                    </div>
+                                </div>
+                                <div class="badge-container" style="gap: 0.5rem; flex-direction: column; align-items: center;">
+                                    <div class="safety-badge" id="safety-badge" style="margin-bottom: 0.25rem;">
+                                        <span id="safety-icon-placeholder"><i data-lucide="shield-check" size="13"></i></span>
+                                        <span id="safety-badge-text">Potability Report</span>
+                                    </div>
+                                    <a id="btn-download-pdf" href="#" class="btn-secondary" style="font-size:0.75rem; padding:0.35rem 0.75rem; display:none; text-decoration:none; align-items:center; gap:0.3rem;">
+                                        <i data-lucide="file-text" size="12"></i>
+                                        <span>Download PDF Report</span>
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- Explainable AI SHAP Section -->
+                            <div class="diagnostic-section" id="shap-container" style="display:none;">
+                                <div class="diagnostic-section-title recommendations">
+                                    <i data-lucide="cpu" size="13"></i>
+                                    <span>SHAP Local Contributions</span>
+                                </div>
+                                <div style="height: 180px; position: relative;">
+                                    <canvas id="shapChart"></canvas>
+                                </div>
+                                <p id="shap-confidence-text" style="font-size:0.78rem; color:var(--text-secondary); line-height:1.4;"></p>
+                                <ul id="shap-factors-list" class="diagnostic-list" style="margin-top:0.25rem; font-size:0.78rem;"></ul>
+                            </div>
+
+                            <!-- WHO Table -->
+                            <div class="diagnostic-section" id="who-table-container" style="display:none;">
+                                <div class="diagnostic-section-title anomalies">
+                                    <i data-lucide="table" size="13"></i>
+                                    <span>WHO Limits Compliance Matrix</span>
+                                </div>
+                                <div class="history-table-container" style="border: 1px solid var(--border-color); border-radius:8px;">
+                                    <table class="history-table" id="who-comparison-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Metric</th>
+                                                <th>WHO Standard</th>
+                                                <th>Reading</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="who-tbody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Hard Fallback Issues -->
+                            <div class="diagnostic-section" id="issues-container" style="display:none;">
+                                <div class="diagnostic-section-title anomalies">
+                                    <i data-lucide="alert-triangle" size="13"></i>
+                                    <span>Detected Guideline Failures</span>
+                                </div>
+                                <ul class="diagnostic-list anomalies-list" id="issues-list"></ul>
+                            </div>
+
+                            <!-- Treatment recommendations -->
+                            <div class="diagnostic-section">
+                                <div class="diagnostic-section-title recommendations">
+                                    <i data-lucide="info" size="13"></i>
+                                    <span>Treatment and Mitigation Guidelines</span>
+                                </div>
+                                <ul class="diagnostic-list recommendations-list" id="recs-list"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </div>
+
+            <!-- Treatment Planner Panel below Analyze -->
+            <article class="panel" style="margin-top:1.5rem;">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <i data-lucide="wrench" size="15"></i>
+                        <span>Mitigation and Engineering Planner</span>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <!-- Idle state -->
+                    <div class="assessment-idle" id="mitigation-idle" style="min-height: 120px;">
+                        <i data-lucide="check-circle" size="24" style="color: var(--emerald);"></i>
+                        <p style="font-size:0.8rem;">All parameters meet standard WHO guidelines. No chemical adjustments required.</p>
+                    </div>
+
+                    <!-- Active state -->
+                    <div id="mitigation-active" style="display:none;">
+                        <div id="mitigation-list" style="display:flex; flex-direction:column; gap:1rem;"></div>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <!-- 4. Smart City Tab Content -->
+        <section class="tab-content" id="tab-smartcity">
+            <div class="sectors-grid">
+                <!-- Sector A -->
+                <div class="sector-card" id="sector-north">
+                    <div class="sector-header">
+                        <span>North Sector Reservoir</span>
+                        <span class="sector-status status-dot" style="box-shadow:none;"></span>
+                    </div>
+                    <div class="sector-val" id="val-sector-north">--</div>
+                    <div class="sector-footer" id="lbl-sector-north">Sector status normal</div>
+                </div>
+                <!-- Sector B -->
+                <div class="sector-card" id="sector-downtown">
+                    <div class="sector-header">
+                        <span>Downtown Distribution</span>
+                        <span class="sector-status status-dot" style="box-shadow:none;"></span>
+                    </div>
+                    <div class="sector-val" id="val-sector-downtown">--</div>
+                    <div class="sector-footer" id="lbl-sector-downtown">Sector status normal</div>
+                </div>
+                <!-- Sector C -->
+                <div class="sector-card" id="sector-industrial">
+                    <div class="sector-header">
+                        <span>Industrial District</span>
+                        <span class="sector-status status-dot" style="box-shadow:none;"></span>
+                    </div>
+                    <div class="sector-val" id="val-sector-industrial">--</div>
+                    <div class="sector-footer" id="lbl-sector-industrial">Sector status normal</div>
+                </div>
+                <!-- Sector D -->
+                <div class="sector-card" id="sector-suburbs">
+                    <div class="sector-header">
+                        <span>Residential Suburbs</span>
+                        <span class="sector-status status-dot" style="box-shadow:none;"></span>
+                    </div>
+                    <div class="sector-val" id="val-sector-suburbs">--</div>
+                    <div class="sector-footer" id="lbl-sector-suburbs">Sector status normal</div>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <!-- Map Node Heatmap -->
+                <article class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i data-lucide="map" size="15"></i>
+                            <span>Smart City Water Grid Heatmap Nodes</span>
+                        </div>
+                    </div>
+                    <div class="panel-body" style="justify-content:center; align-items:center; min-height:300px;">
+                        <div class="heatmap-grid" id="city-heatmap-grid">
+                            <div class="heatmap-node" data-node="1">N1</div>
+                            <div class="heatmap-node" data-node="2">N2</div>
+                            <div class="heatmap-node" data-node="3">N3</div>
+                            <div class="heatmap-node" data-node="4">N4</div>
+                            <div class="heatmap-node" data-node="5">N5</div>
+                            <div class="heatmap-node" data-node="6">N6</div>
+                            <div class="heatmap-node" data-node="7">N7</div>
+                            <div class="heatmap-node" data-node="8">N8</div>
+                            <div class="heatmap-node" data-node="9">N9</div>
+                            <div class="heatmap-node" data-node="10">N10</div>
+                            <div class="heatmap-node" data-node="11">N11</div>
+                            <div class="heatmap-node" data-node="12">N12</div>
+                            <div class="heatmap-node" data-node="13">N13</div>
+                            <div class="heatmap-node" data-node="14">N14</div>
+                            <div class="heatmap-node" data-node="15">N15</div>
+                            <div class="heatmap-node" data-node="16">N16</div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Location-based table -->
+                <article class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i data-lucide="globe" size="15"></i>
+                            <span>Location Safety Aggregates</span>
+                        </div>
+                    </div>
+                    <div class="panel-body" style="padding:0;">
+                        <div class="history-table-container">
+                            <table class="history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Region / Sector</th>
+                                        <th>Samples</th>
+                                        <th>Avg Score</th>
+                                        <th>Potable %</th>
+                                        <th>Primary Contam.</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="location-tbody">
+                                    <tr>
+                                        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading aggregates...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- 5. Analytics Tab Content -->
+        <section class="tab-content" id="tab-analytics">
+            <div class="dashboard-grid">
+                <!-- Historical Trend line chart -->
+                <article class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i data-lucide="trending-up" size="15"></i>
+                            <span>Safety Score Index Timeline</span>
+                        </div>
+                    </div>
+                    <div class="panel-body" style="height: 320px; position:relative;">
+                        <canvas id="analyticsTrendChart"></canvas>
+                    </div>
+                </article>
+
+                <!-- Parameter distribution details -->
+                <article class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i data-lucide="bar-chart-2" size="15"></i>
+                            <span>Guideline Anomalies by Parameter</span>
+                        </div>
+                    </div>
+                    <div class="panel-body" style="height: 320px; position:relative;">
+                        <canvas id="analyticsBarChart"></canvas>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- 6. Performance Tab Content -->
+        <section class="tab-content" id="tab-performance">
+            <!-- Top Performance Cards -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-title">Selected Model Accuracy</span>
+                        <i data-lucide="check-circle-2" size="14" class="metric-icon" style="color:var(--primary);"></i>
+                    </div>
+                    <div class="metric-value" id="card-acc">--</div>
+                    <div class="metric-footer">XGBoost Classifier</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-title">F1-Score</span>
+                        <i data-lucide="zap" size="14" class="metric-icon" style="color:var(--primary);"></i>
+                    </div>
+                    <div class="metric-value" id="card-f1">--</div>
+                    <div class="metric-footer">Harmonic mean of test precision/recall</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-title">ROC AUC</span>
+                        <i data-lucide="trending-up" size="14" class="metric-icon" style="color:var(--primary);"></i>
+                    </div>
+                    <div class="metric-value" id="card-auc">--</div>
+                    <div class="metric-footer">Selected decision area bounds</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-title">Train Data Size</span>
+                        <i data-lucide="database" size="14" class="metric-icon"></i>
+                    </div>
+                    <div class="metric-value">3,276</div>
+                    <div class="metric-footer">Rows in water_potability.csv</div>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <!-- Comparison matrix table -->
+                <article class="panel" style="grid-column: span 2;">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i data-lucide="table" size="15"></i>
+                            <span>Evaluated Classifiers Matrix</span>
+                        </div>
+                    </div>
+                    <div class="panel-body" style="padding:0;">
+                        <div class="history-table-container">
+                            <table class="history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Model Name</th>
+                                        <th>Accuracy</th>
+                                        <th>Precision</th>
+                                        <th>Recall</th>
+                                        <th>F1 Score</th>
+                                        <th>ROC AUC</th>
+                                        <th>Pipeline State</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="metrics-table-body">
+                                    <tr>
+                                        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading classifier reports...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- ROC Curves line plot -->
+                <article class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i data-lucide="line-chart" size="15"></i>
+                            <span>Multi-Model ROC Curves</span>
+                        </div>
+                    </div>
+                    <div class="panel-body" style="height: 300px; position:relative;">
+                        <canvas id="rocChart"></canvas>
+                    </div>
+                </article>
+
+                <!-- Confusion Matrix Heatmap -->
+                <article class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i data-lucide="grid" size="15"></i>
+                            <span>XGBoost Confusion Matrix (Test Set)</span>
+                        </div>
+                    </div>
+                    <div class="panel-body" style="display:flex; justify-content:center; align-items:center; min-height:300px;">
+                        <table class="matrix-table">
+                            <tr>
+                                <td class="matrix-cell tn">
+                                    <div class="matrix-val" id="matrix-tn">--</div>
+                                    <div class="matrix-lbl">True Neg (TN)</div>
+                                </td>
+                                <td class="matrix-cell fp">
+                                    <div class="matrix-val" id="matrix-fp">--</div>
+                                    <div class="matrix-lbl">False Pos (FP)</div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="matrix-cell fn">
+                                    <div class="matrix-val" id="matrix-fn">--</div>
+                                    <div class="matrix-lbl">False Neg (FN)</div>
+                                </td>
+                                <td class="matrix-cell tp">
+                                    <div class="matrix-val" id="matrix-tp">--</div>
+                                    <div class="matrix-lbl">True Pos (TP)</div>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </article>
+
+                <!-- Global Feature Importance -->
+                <article class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i data-lucide="bar-chart-horizontal" size="15"></i>
+                            <span>XGBoost Global Feature Importance</span>
+                        </div>
+                    </div>
+                    <div class="panel-body" style="height: 300px; position:relative;">
+                        <canvas id="importanceChart"></canvas>
+                    </div>
+                </article>
+
+                <!-- Rationale block -->
+                <article class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i data-lucide="help-circle" size="15"></i>
+                            <span>Architectural Rationale</span>
+                        </div>
+                    </div>
+                    <div class="panel-body" style="font-size:0.85rem; line-height:1.5; color:var(--text-secondary);">
+                        <p style="margin-bottom:0.75rem;"><strong>XGBoost</strong> was selected as the final classifier based on:</p>
+                        <ul style="padding-left:1.25rem; display:flex; flex-direction:column; gap:0.5rem;">
+                            <li><strong>Nonlinear Splitting:</strong> Safely mapping chemical bounds (which do not exhibit simple linear correlation relative to potability) requires multi-split decision boundaries.</li>
+                            <li><strong>Training weights:</strong> Accommodates sample adjustments directly in optimization steps to normalize class disparity labels.</li>
+                            <li><strong>TreeExplainer integrations:</strong> Fast, exact calculation of Shapley additive contribution margins for immediate visual explanations.</li>
+                        </ul>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- 7. History Tab Content -->
+        <section class="tab-content" id="tab-history">
+            <article class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <i data-lucide="history" size="15"></i>
+                        <span>Historical Ingestion Logs</span>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <div class="history-actions">
+                        <div class="search-input-wrapper">
+                            <i data-lucide="search" size="14"></i>
+                            <input type="text" class="search-input" id="history-search" placeholder="Filter by status or value...">
+                        </div>
+                        <div class="btn-action-group">
+                            <button class="btn-secondary" id="btn-refresh-history">
+                                <i data-lucide="refresh-cw" size="13"></i>
+                                <span>Refresh Logs</span>
+                            </button>
+                            <button class="btn-secondary" id="btn-download-csv">
+                                <i data-lucide="download" size="13"></i>
+                                <span>Export CSV</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="history-table-container">
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Location</th>
+                                    <th>pH</th>
+                                    <th>TDS</th>
+                                    <th>Chlor.</th>
+                                    <th>Sulfate</th>
+                                    <th>Turb.</th>
+                                    <th>Score</th>
+                                    <th>Classification</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-tbody">
+                                <tr>
+                                    <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 2rem;">Querying database logs...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <!-- 8. About Tab Content -->
+        <section class="tab-content" id="tab-about">
+            <article class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <i data-lucide="info" size="15"></i>
+                        <span>Platform & Methodology Information</span>
+                    </div>
+                </div>
+                <div class="panel-body" style="font-size:0.88rem; color:var(--text-secondary); line-height:1.6; display:flex; flex-direction:column; gap:1.25rem;">
+                    <div>
+                        <h3 style="color:var(--text-primary); font-size:1rem; margin-bottom:0.4rem; font-weight:700;">Explainable AI via Shapley Values</h3>
+                        <p>Shapley values originate from cooperative game theory, determining the marginal contribution of each player (feature) to the game's outcome (prediction). In our pipeline, the SHAP values detail exactly how much each parameter (pH, Sulfate, TDS, etc.) increased or decreased the classification margin relative to a baseline value. This ensures full auditing safety and replaces standard "black-box" model outputs.</p>
+                    </div>
+                    <div>
+                        <h3 style="color:var(--text-primary); font-size:1rem; margin-bottom:0.4rem; font-weight:700;">Mathematical Safety Index Scoring</h3>
+                        <p>While the machine learning model classifies potability based on a high-dimensional decision boundary trained on real historical water samples, the Water Safety Score represents a strict, rule-based mathematical index. It applies penalties for any parameter deviating from standard WHO standards, scaling from 0 (extreme health risk) to 100 (fully safe, zero chemical deviations). This dual-metric pipeline yields both empirical predictions and mathematical compliance margins.</p>
+                    </div>
+                    <div>
+                        <h3 style="color:var(--text-primary); font-size:1rem; margin-bottom:0.4rem; font-weight:700;">Disclaimer and Limitations</h3>
+                        <p>All safety recommendations generated by Google's Gemini generative model or our fallback rules engine are for informational, diagnostic, and laboratory study purposes. Real water safety requires physical testing, chemical titration, and micro-biological cultures. Ensure standard lab audits are conducted before certifying public water supplies.</p>
+                    </div>
+                </div>
+            </article>
+        </section>
+    </main>
+
+    <!-- Interactive script controller -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
